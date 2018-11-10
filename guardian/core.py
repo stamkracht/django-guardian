@@ -7,7 +7,8 @@ from django.contrib.auth.models import Permission
 from django.db.models.query import QuerySet
 from django.utils.encoding import force_text
 from guardian.ctypes import get_content_type
-from guardian.utils import get_group_obj_perms_model, get_identity, get_user_obj_perms_model
+from guardian.utils import get_group_obj_perms_model, get_identity, get_user_obj_perms_model, \
+    get_usergroup_many_to_many_field
 
 
 def _get_pks_model_and_ctype(objects):
@@ -78,7 +79,6 @@ class ObjectPermissionChecker(object):
         return perm in self.get_perms(obj)
 
     def get_group_filters(self, obj):
-        User = get_user_model()
         ctype = get_content_type(obj)
 
         group_model = get_group_obj_perms_model(obj)
@@ -86,7 +86,7 @@ class ObjectPermissionChecker(object):
         if self.user:
             fieldname = '%s__group__%s' % (
                 group_rel_name,
-                User.groups.field.related_query_name(),
+                get_usergroup_many_to_many_field(),
             )
             group_filters = {fieldname: self.user}
         else:
@@ -181,7 +181,6 @@ class ObjectPermissionChecker(object):
         if self.user and not self.user.is_active:
             return []
 
-        User = get_user_model()
         pks, model, ctype = _get_pks_model_and_ctype(objects)
 
         if self.user and self.user.is_superuser:
@@ -200,7 +199,7 @@ class ObjectPermissionChecker(object):
 
         if self.user:
             fieldname = 'group__%s' % (
-                User.groups.field.related_query_name(),
+                get_usergroup_many_to_many_field(),
             )
             group_filters = {fieldname: self.user}
         else:

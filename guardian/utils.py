@@ -32,13 +32,21 @@ def get_group_model():
     Returns the User model that is active in this project.
     """
     try:
-        return django_apps.get_model(settings.AUTH_GROUP_MODEL, require_ready=False)
+        return django_apps.get_model(getattr(settings, 'AUTH_GROUP_MODEL', 'auth.Group'), require_ready=False)
     except ValueError:
         raise ImproperlyConfigured("AUTH_GROUP_MODEL must be of the form 'app_label.model_name'")
     except LookupError:
         raise ImproperlyConfigured(
             "AUTH_GROUP_MODEL refers to model '%s' that has not been installed" % settings.AUTH_USER_MODEL
         )
+
+
+def get_usergroup_many_to_many_field():
+    model = get_group_model()
+    for m2m_field in model._meta.get_fields():
+        if m2m_field.related_model == get_user_model():
+            return m2m_field.name
+    raise ImproperlyConfigured("AUTH_GROUP_MODEL must have many to many relation with user model")
 
 
 def get_anonymous_user():
