@@ -9,7 +9,7 @@ from itertools import groupby
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Q, QuerySet
 from django.shortcuts import _get_queryset
@@ -19,7 +19,8 @@ from guardian.core import ObjectPermissionChecker
 from guardian.ctypes import get_content_type
 from guardian.exceptions import MixedContentTypeError, WrongAppError, MultipleIdentityAndObjectError
 from guardian.models import GroupObjectPermission
-from guardian.utils import get_anonymous_user, get_group_obj_perms_model, get_identity, get_user_obj_perms_model
+from guardian.utils import get_anonymous_user, get_group_obj_perms_model, get_identity, get_user_obj_perms_model, \
+    get_group_model
 
 
 def assign_perm(perm, user_or_group, obj=None):
@@ -32,7 +33,7 @@ def assign_perm(perm, user_or_group, obj=None):
       ``Permission`` instance.
 
     :param user_or_group: instance of ``User``, ``AnonymousUser``, ``Group``,
-      list of ``User`` or ``Group``, or queryset of ``User`` or ``Group``; 
+      list of ``User`` or ``Group``, or queryset of ``User`` or ``Group``;
       passing any other object would raise
       ``guardian.exceptions.NotUserNorGroup`` exception
 
@@ -361,7 +362,7 @@ def get_groups_with_perms(obj, attach_perms=False):
             }
         else:
             group_filters = {'%s__content_object' % group_rel_name: obj}
-        return Group.objects.filter(**group_filters).distinct()
+        return get_group_model().objects.filter(**group_filters).distinct()
     else:
         group_perms_mapping = defaultdict(list)
         groups_with_perms = get_groups_with_perms(obj)

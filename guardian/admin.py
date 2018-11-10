@@ -11,9 +11,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
+from guardian.utils import get_group_model, get_usergroup_many_to_many_field
 from guardian.compat import url
 from guardian.forms import GroupObjectPermissionsForm, UserObjectPermissionsForm
-from guardian.models import Group
 from guardian.shortcuts import (get_group_perms, get_groups_with_perms, get_perms_for_model, get_user_perms,
                                 get_users_with_perms)
 
@@ -68,8 +68,7 @@ class GuardedModelAdminMixin(object):
             filters = {self.user_owned_objects_field: request.user}
             qs = qs.filter(**filters)
         if self.user_can_access_owned_by_group_objects_only:
-            User = get_user_model()
-            user_rel_name = User.groups.field.related_query_name()
+            user_rel_name = get_usergroup_many_to_many_field()
             qs_key = '%s__%s' % (self.group_owned_objects_field, user_rel_name)
             filters = {qs_key: request.user}
             qs = qs.filter(**filters)
@@ -152,10 +151,11 @@ class GuardedModelAdminMixin(object):
             )
         )
 
+        group_identifier = getattr(get_group_model(), 'IDENTIFIER_FIELD', 'name')
         groups_perms = OrderedDict(
             sorted(
                 get_groups_with_perms(obj, attach_perms=True).items(),
-                key=lambda group: group[0].name
+                key=lambda group: getattr(group[0], group_identifier)
             )
         )
 
@@ -299,7 +299,7 @@ class GuardedModelAdminMixin(object):
             post_url = reverse('admin:index', current_app=self.admin_site.name)
             return redirect(post_url)
 
-        group = get_object_or_404(Group, id=group_id)
+        group = get_object_or_404(get_group_model(), id=group_id)
         obj = get_object_or_404(self.get_queryset(request), pk=object_pk)
         form_class = self.get_obj_perms_manage_group_form(request)
         form = form_class(group, obj, request.POST or None)
@@ -465,9 +465,11 @@ class GroupManage(forms.Form):
         """
         Returns ``Group`` instance based on the given group name.
         """
-        name = self.cleaned_data['group']
+        Group = get_group_model()
+        identifier = self.cleaned_data['group']
         try:
-            group = Group.objects.get(name=name)
+            group_identifier = getattr(get_group_model(), 'IDENTIFIER_FIELD', 'name')
+            group = Group.objects.get(**{group_identifier:identifier})
             return group
         except Group.DoesNotExist:
             raise forms.ValidationError(
