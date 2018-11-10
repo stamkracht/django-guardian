@@ -11,10 +11,11 @@ import logging
 import os
 from itertools import chain
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME, get_user_model
-from django.contrib.auth.models import AnonymousUser, Group
-from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ImproperlyConfigured
 from django.db.models import Model, QuerySet
 from django.http import HttpResponseForbidden, HttpResponseNotFound
 from django.shortcuts import render
@@ -24,6 +25,20 @@ from guardian.exceptions import NotUserNorGroup
 
 logger = logging.getLogger(__name__)
 abspath = lambda *p: os.path.abspath(os.path.join(*p))
+
+
+def get_group_model():
+    """
+    Returns the User model that is active in this project.
+    """
+    try:
+        return django_apps.get_model(settings.AUTH_GROUP_MODEL, require_ready=False)
+    except ValueError:
+        raise ImproperlyConfigured("AUTH_GROUP_MODEL must be of the form 'app_label.model_name'")
+    except LookupError:
+        raise ImproperlyConfigured(
+            "AUTH_GROUP_MODEL refers to model '%s' that has not been installed" % settings.AUTH_USER_MODEL
+        )
 
 
 def get_anonymous_user():
@@ -67,6 +82,8 @@ def get_identity(identity):
        NotUserNorGroup: User/AnonymousUser or Group instance is required (got )
 
     """
+    Group = get_group_model()
+
     if isinstance(identity, AnonymousUser):
         identity = get_anonymous_user()
 
